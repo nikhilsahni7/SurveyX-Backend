@@ -7,6 +7,9 @@ import (
 	"os"
 
 	"github.com/antonlindstrom/pgstore"
+	"github.com/nikhilsahni7/SurveyX/db"
+	"github.com/nikhilsahni7/SurveyX/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -15,12 +18,12 @@ var (
 
 func InitStore() {
 	var err error
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
 		log.Fatal("DATABASE_URL environment variable is not set")
 	}
 
-	Store, err = pgstore.NewPGStore(dsn, []byte(os.Getenv("SESSION_KEY")))
+	Store, err = pgstore.NewPGStore(connStr, []byte(os.Getenv("SESSION_KEY")))
 	if err != nil {
 		log.Fatalf("Failed to initialize session store: %v", err)
 	}
@@ -49,4 +52,41 @@ func ClearSession(w http.ResponseWriter, r *http.Request) {
 	session.Values["authenticated"] = false
 	session.Values["user_id"] = nil
 	session.Save(r, w)
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+func CreateUser(email, name, password string) (*models.User, error) {
+	hashedPassword, err := HashPassword(password)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &models.User{
+		Email:        email,
+		Name:         name,
+		PasswordHash: hashedPassword,
+	}
+
+	if err := db.DB.Create(user).Error; err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+func GetUserByEmail(email string) (*models.User, error) {
+	var user models.User
+	if err := db.DB.Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

@@ -47,12 +47,15 @@ func InitDB() {
 	// Auto Migrate the schema
 	err = DB.AutoMigrate(
 		&models.User{},
+		&models.Team{},
 		&models.Survey{},
 		&models.Question{},
+		&models.Condition{},
 		&models.Option{},
 		&models.Response{},
 		&models.Answer{},
 		&models.SurveyLink{},
+		&models.Webhook{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)

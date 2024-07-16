@@ -8,16 +8,26 @@ import (
 
 type User struct {
 	gorm.Model
-	Email    string `gorm:"uniqueIndex"`
-	Name     string
-	GoogleID string `gorm:"uniqueIndex"`
-	Picture  string
-	Surveys  []Survey
+	Email        string `gorm:"uniqueIndex"`
+	Name         string
+	GoogleID     string `gorm:"uniqueIndex"`
+	Picture      string
+	PasswordHash string
+	Surveys      []Survey
+	Teams        []Team `gorm:"many2many:user_teams;"`
+}
+type Team struct {
+	gorm.Model
+	Name    string
+	OwnerID uint
+	Users   []User `gorm:"many2many:user_teams;"`
+	Surveys []Survey
 }
 
 type Survey struct {
 	gorm.Model
 	UserID        uint
+	TeamID        *uint
 	Title         string
 	Description   string
 	Questions     []Question
@@ -29,6 +39,8 @@ type Survey struct {
 	CustomStyles  string
 	Responses     []Response
 	Link          string
+	IsPublished   bool
+	Version       int
 }
 
 type Question struct {
@@ -43,6 +55,15 @@ type Question struct {
 	MaxValue      *int
 	AllowMultiple bool
 	MaxFileSize   *int
+	Conditions    []Condition
+}
+
+type Condition struct {
+	gorm.Model
+	QuestionID       uint
+	DependentOnID    uint
+	DependentOnValue string
+	Operator         string // e.g., "equals", "not equals", "greater than", etc.
 }
 
 type Option struct {
@@ -65,6 +86,7 @@ type Answer struct {
 	ResponseID uint
 	QuestionID uint
 	Value      string
+	Question   Question `gorm:"foreignKey:QuestionID"`
 }
 
 type SurveyLink struct {
@@ -72,4 +94,13 @@ type SurveyLink struct {
 	SurveyID uint
 	Link     string `gorm:"uniqueIndex"`
 	IsActive bool
+}
+
+type Webhook struct {
+	gorm.Model
+	UserID   uint
+	SurveyID uint
+	URL      string
+	Events   string
+	Secret   string
 }
