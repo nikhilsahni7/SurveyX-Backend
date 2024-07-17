@@ -19,7 +19,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a new state string for CSRF protection
 	state := config.GenerateStateOauthCookie(w)
 	url := config.GoogleOauthConfig.AuthCodeURL(state)
 	log.Printf("Redirecting to Google OAuth URL: %s", url)
@@ -27,9 +26,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	state := r.FormValue("state")
-	if err := config.VerifyStateOauthCookie(r, state); err != nil {
-		http.Error(w, "Invalid OAuth state", http.StatusBadRequest)
+	if err := config.VerifyStateOauthCookie(r); err != nil {
+		http.Error(w, "Invalid OAuth state: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -52,12 +50,16 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, _ := auth.Store.Get(r, "session-name")
+	session, err := auth.Store.New(r, "session-name")
+	if err != nil {
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
 	session.Values["authenticated"] = true
 	session.Values["user_id"] = user.ID
 	err = session.Save(r, w)
 	if err != nil {
-		http.Error(w, "Failed to save session: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to save session", http.StatusInternalServerError)
 		return
 	}
 
@@ -66,8 +68,8 @@ func GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var user struct {
-		Email    string `json:"email"`
 		Name     string `json:"name"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
@@ -78,10 +80,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	newUser, err := auth.CreateUser(user.Email, user.Name, user.Password)
 	if err != nil {
-		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newUser)
 }
@@ -108,7 +111,11 @@ func LoginHandlerEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, _ := auth.Store.Get(r, "session-name")
+	session, err := auth.Store.New(r, "session-name")
+	if err != nil {
+		http.Error(w, "Failed to create session", http.StatusInternalServerError)
+		return
+	}
 	session.Values["authenticated"] = true
 	session.Values["user_id"] = user.ID
 	err = session.Save(r, w)
@@ -120,11 +127,22 @@ func LoginHandlerEmail(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Login successful"})
 }
-
-// ... (existing code)
-
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	auth.ClearSession(w, r)
+	session, err := auth.Store.Get(r, "session-name")
+	if err != nil {
+		http.Error(w, "Failed to get session", http.StatusInternalServerError)
+		return
+	}
+
+	session.Values = make(map[interface{}]interface{})
+	session.Options.MaxAge = -1
+
+	err = session.Save(r, w)
+	if err != nil {
+		http.Error(w, "Failed to save session", http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, "http://localhost:3000/login", http.StatusSeeOther)
 }
 

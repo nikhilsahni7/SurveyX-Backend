@@ -70,7 +70,7 @@ func TestSurveyHandlers(t *testing.T) {
 	user := models.User{
 		Email:    "test@example.com",
 		Name:     "Test User",
-		GoogleID: "test123",
+		GoogleID: nil,
 	}
 	db.DB.Create(&user)
 

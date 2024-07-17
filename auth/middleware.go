@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/antonlindstrom/pgstore"
+	"github.com/gorilla/sessions"
 	"github.com/nikhilsahni7/SurveyX/db"
 	"github.com/nikhilsahni7/SurveyX/models"
 	"golang.org/x/crypto/bcrypt"
@@ -27,33 +28,70 @@ func InitStore() {
 	if err != nil {
 		log.Fatalf("Failed to initialize session store: %v", err)
 	}
+
+	// Set session options
+	Store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   86400 * 7, // 7 days
+		HttpOnly: true,
+		Secure:   false, // Set to true if using HTTPS
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	log.Println("Session store initialized successfully")
 }
 
+func ClearSession(w http.ResponseWriter, r *http.Request) {
+	session, err := Store.Get(r, "session-name")
+	if err != nil {
+		log.Printf("Error getting session: %v", err)
+		// Even if there's an error, proceed to reset the cookie
+	}
+
+	// Reset session values
+	session.Values = make(map[interface{}]interface{})
+	session.Options.MaxAge = -1 // Expire the cookie immediately
+
+	err = session.Save(r, w)
+	if err != nil {
+		log.Printf("Error saving session: %v", err)
+		// If saving fails, manually expire the cookie
+		http.SetCookie(w, &http.Cookie{
+			Name:     "session-name",
+			Value:    "",
+			Path:     "/",
+			MaxAge:   -1,
+			HttpOnly: true,
+			Secure:   r.TLS != nil,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
+}
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		session, err := Store.Get(r, "session-name")
 		if err != nil {
-			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			log.Printf("Error getting session: %v", err)
+			http.Error(w, "Invalid session", http.StatusUnauthorized)
 			return
 		}
-		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+		auth, ok := session.Values["authenticated"].(bool)
+		if !ok || !auth {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		userID := session.Values["user_id"].(uint)
+
+		userID, ok := session.Values["user_id"].(uint)
+		if !ok {
+			http.Error(w, "Invalid user session", http.StatusUnauthorized)
+			return
+		}
+
 		ctx := context.WithValue(r.Context(), "userID", userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
-
-func ClearSession(w http.ResponseWriter, r *http.Request) {
-	session, _ := Store.Get(r, "session-name")
-	session.Options.MaxAge = -1
-	session.Values["authenticated"] = false
-	session.Values["user_id"] = nil
-	session.Save(r, w)
-}
-
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
@@ -69,17 +107,15 @@ func CreateUser(email, name, password string) (*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	user := &models.User{
 		Email:        email,
 		Name:         name,
 		PasswordHash: hashedPassword,
+		GoogleID:     nil, // Explicitly set to nil for non-Google users
 	}
-
 	if err := db.DB.Create(user).Error; err != nil {
 		return nil, err
 	}
-
 	return user, nil
 }
 

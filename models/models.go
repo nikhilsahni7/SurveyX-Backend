@@ -10,7 +10,7 @@ type User struct {
 	gorm.Model
 	Email        string `gorm:"uniqueIndex"`
 	Name         string
-	GoogleID     string `gorm:"uniqueIndex"`
+	GoogleID     *string `gorm:"uniqueIndex"`
 	Picture      string
 	PasswordHash string
 	Surveys      []Survey

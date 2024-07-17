@@ -32,7 +32,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/sessions v1.3.0 // indirect
+	github.com/gorilla/sessions v1.3.0
 	github.com/rs/cors v1.11.0
 	golang.org/x/time v0.5.0
 	gorm.io/gorm v1.25.11
