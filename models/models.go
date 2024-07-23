@@ -86,7 +86,8 @@ type Answer struct {
 	ResponseID uint
 	QuestionID uint
 	Value      string
-	Question   Question `gorm:"foreignKey:QuestionID"`
+	Response   Response `gorm:"foreignKey:ResponseID"`
+	Question   Question `gorm:"foreignKey:QuestionID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type SurveyLink struct {

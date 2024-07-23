@@ -1,3 +1,5 @@
+// analyticsHandlers.go
+
 package handlers
 
 import (
@@ -26,16 +28,12 @@ func GetSurveyAnalytics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	analytics := calculateAnalytics(&survey)
-
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(analytics)
 }
 
 func calculateAnalytics(survey *models.Survey) map[string]interface{} {
 	analytics := make(map[string]interface{})
-
-	totalResponses := len(survey.Responses)
-	analytics["totalResponses"] = totalResponses
+	analytics["totalResponses"] = len(survey.Responses)
 
 	questionAnalytics := make(map[string]interface{})
 	for _, question := range survey.Questions {
@@ -52,6 +50,7 @@ func calculateAnalytics(survey *models.Survey) map[string]interface{} {
 				}
 			}
 			qa["optionCounts"] = optionCounts
+
 		case "rating", "scale":
 			var sum, count int
 			for _, response := range survey.Responses {
@@ -66,6 +65,7 @@ func calculateAnalytics(survey *models.Survey) map[string]interface{} {
 			if count > 0 {
 				qa["average"] = float64(sum) / float64(count)
 			}
+
 		case "text", "textarea":
 			answers := []string{}
 			for _, response := range survey.Responses {
@@ -82,7 +82,6 @@ func calculateAnalytics(survey *models.Survey) map[string]interface{} {
 	}
 
 	analytics["questionAnalytics"] = questionAnalytics
-
 	return analytics
 }
 
