@@ -1,6 +1,6 @@
 # SurveyX
 
-SurveyX is a web application for creating and managing surveys. This project uses Go for the backend and PostgreSQL as the database.
+SurveyX is a web application for creating and managing surveys. This project uses Go and Gorilla Mux for the backend and PostgreSQL as the database.
 
 ## Table of Contents
 
