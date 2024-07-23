@@ -14,7 +14,7 @@ SurveyX is a web application for creating and managing surveys. This project use
 
 ## Features
 
-- Create and manage surveys forms of text,rating,mcq and checkbox types(also other types can be added)
+- Create and manage survey forms of  text,rating,mcq and checkbox types(also other types can be added)
 - Add questions and options to surveys
 - people can visit the surveys with live link and submit their responses
 - analytics to anaylse the user responses and export cv option for storing data of responses in cv format
